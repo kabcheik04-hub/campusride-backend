@@ -1,4 +1,4 @@
-# ADR 002 : Choix de la base de données
+﻿# ADR 002 : Choix de la base de données
 
 - **Statut** : acceptée
 - **Date** : 12 novembre 2026
@@ -11,8 +11,8 @@ un trajet reçoit des réservations, et des avis relient des utilisateurs après
 Deux règles métier demandent de la cohérence : on ne doit jamais réserver plus de places qu'il n'en
 reste, et un passager ne peut avoir qu'une réservation active par trajet.
 
-Contraintes : chaque membre du groupe doit pouvoir lancer le projet sur son ordinateur sans installer
-ni configurer un serveur de base de données, et l'évaluateur doit pouvoir le démarrer avec le README seul.
+Contraintes : le projet doit se lancer sans installer ni configurer un serveur de base de données,
+et l'évaluateur doit pouvoir le démarrer avec le README seul.
 
 ## Décision
 
@@ -32,18 +32,18 @@ Le schéma comporte 4 tables : `users`, `trips`, `bookings`, `reviews`, avec :
 
 | Option | Avantage | Raison du rejet |
 | --- | --- | --- |
-| PostgreSQL | Très robuste, adapté à de gros volumes et à plusieurs serveurs | Demande d'installer et de configurer un serveur sur chaque poste, trop lourd pour un MVP de TD |
-| MySQL / MariaDB | Très répandu | Même contrainte d'installation que PostgreSQL, sans bénéfice pour ce projet |
-| MongoDB (base documents) | Schéma souple | Les données sont très relationnelles (réservations, avis) : les jointures et les contraintes d'intégrité seraient à refaire à la main |
+| PostgreSQL | Très robuste, adapté à de gros volumes | Demande d'installer et de configurer un serveur sur chaque poste, trop lourd pour un MVP de TD |
+| MySQL / MariaDB | Très répandu | Même contrainte d'installation, sans bénéfice pour ce projet |
+| MongoDB (base documents) | Schéma souple | Les données sont très relationnelles (réservations, avis) : jointures et contraintes d'intégrité à refaire à la main |
 | Fichiers JSON | Aucun outil à apprendre | Aucune transaction ni contrainte : risque de surréservation et de données corrompues |
 
 ## Conséquences
 
-- **Positives** : aucune installation ni configuration, démarrage immédiat, données réelles et cohérentes
-  grâce aux contraintes et aux transactions, base facile à remettre à zéro (supprimer le fichier).
+- **Positives** : aucune installation ni configuration, démarrage immédiat, données cohérentes grâce
+  aux contraintes et aux transactions, base facile à remettre à zéro (supprimer le fichier).
 - **Négatives** : SQLite n'est pas pensé pour beaucoup d'écritures simultanées ni pour plusieurs serveurs
-  d'API en parallèle. Le module `node:sqlite` est encore marqué « expérimental » dans Node 22 et affiche un
+  d'API en parallèle. Le module `node:sqlite` est encore marqué « expérimental » et affiche un
   avertissement au lancement, sans effet sur le fonctionnement.
 - **Évolution possible** : le SQL utilisé reste standard. Un passage à PostgreSQL en production demanderait
-  d'adapter `src/db.js` (connexion et transactions) et quelques fonctions SQL propres à SQLite
-  (dates, `strftime`), sans changer le modèle de données ni les routes.
+  d'adapter `src/db.js` et quelques fonctions propres à SQLite (dates, `strftime`), sans changer le modèle
+  de données ni les routes.
