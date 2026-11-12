@@ -68,7 +68,7 @@ export function createApp({ db, config }) {
       sendJson(res, result.status ?? 200, result.body, headers);
     } catch (error) {
       if (error instanceof HttpError) {
-        sendJson(res, error.status, { error: error.message }, headers);
+        sendJson(res, error.status, { error: error.message }, error.status === 413 ? { ...headers, Connection: 'close' } : headers);
       } else {
         console.error(error);
         sendJson(res, 500, { error: 'Erreur interne du serveur' }, headers);
