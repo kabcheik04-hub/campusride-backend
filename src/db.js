@@ -118,6 +118,21 @@ function migrateUsers(db) {
   if (!columns.includes('suspended_at')) db.exec('ALTER TABLE users ADD COLUMN suspended_at TEXT');
 }
 
+const NOTIFICATIONS_SCHEMA = `
+-- Notifications internes (la cloche). trip_id et booking_id sont informatifs, sans clé étrangère
+CREATE TABLE IF NOT EXISTS notifications (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id    INTEGER NOT NULL REFERENCES users(id),
+  type       TEXT NOT NULL,
+  message    TEXT NOT NULL,
+  trip_id    INTEGER,
+  booking_id INTEGER,
+  read_at    TEXT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, read_at, id);
+`;
+
 /** Ouvre (et crée si besoin) la base SQLite, puis applique le schéma. */
 export function openDb(path) {
   if (path !== ':memory:') {
@@ -131,6 +146,7 @@ export function openDb(path) {
   migrateBookings(db);
   db.exec(SCHEMA);
   migrateUsers(db);
+  db.exec(NOTIFICATIONS_SCHEMA);
   return db;
 }
 

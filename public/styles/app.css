@@ -264,3 +264,23 @@ dialog::backdrop { background: rgba(11, 27, 52, 0.6); }
 .segmented-wide > a { flex: 1 1 auto; text-align: center; }
 .admin-search { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-3); margin-bottom: var(--space-4); }
 .admin-search .field { flex: 1 1 14rem; margin: 0; }
+
+/* Cloche de notifications */
+.bell { display: flex; align-items: center; margin-left: 0.5rem; }
+.bell [hidden] { display: none !important; }
+.bell-btn { position: relative; display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding: 0; border: 0; border-radius: 10px; background: transparent; color: inherit; cursor: pointer; }
+.bell-btn:hover { background: rgba(14, 124, 134, 0.1); }
+.bell-btn:focus-visible { outline: 3px solid #0E7C86; outline-offset: 2px; }
+.bell-badge { position: absolute; top: 2px; right: 2px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #C2410C; color: #fff; font-size: 0.75rem; font-weight: 700; line-height: 18px; text-align: center; }
+.bell-panel { position: fixed; top: 4rem; right: 0.75rem; z-index: 50; width: min(22rem, calc(100vw - 1.5rem)); max-height: min(70vh, 28rem); overflow-y: auto; background: #fff; color: #1a2b2e; border: 1px solid #d5dde0; border-radius: 14px; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18); }
+.bell-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.5rem 1rem; border-bottom: 1px solid #e5eaec; }
+.bell-head h2 { margin: 0; font-size: 1rem; }
+.bell-readall { min-height: 44px; padding: 0 0.25rem; border: 0; background: none; color: #0B646C; font: inherit; font-size: 0.875rem; text-decoration: underline; cursor: pointer; }
+.bell-list { list-style: none; margin: 0; padding: 0; }
+.bell-item { display: block; padding: 0.75rem 1rem; color: inherit; text-decoration: none; border-bottom: 1px solid #eef2f3; }
+.bell-item:hover, .bell-item:focus-visible { background: #f2f8f9; }
+.bell-item.is-unread { background: #eaf5f6; border-left: 4px solid #0E7C86; padding-left: calc(1rem - 4px); font-weight: 600; }
+.bell-msg { display: block; }
+.bell-time { display: block; margin-top: 0.15rem; font-size: 0.8125rem; font-weight: 400; color: #5b6b70; }
+.bell-empty { padding: 1.25rem 1rem; text-align: center; color: #5b6b70; }
+.bell-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }

@@ -1,4 +1,5 @@
 import { HttpError } from '../http.js';
+import { notify, tripLabel, userName } from '../notify.js';
 import { transaction } from '../db.js';
 import { requireTrip } from '../queries.js';
 import { parseId, requireInt } from '../validation.js';
@@ -53,6 +54,13 @@ export const bookingRoutes = [
           .prepare('INSERT INTO bookings (trip_id, passenger_id, seats) VALUES (?, ?, ?)')
           .run(tripId, user.id, seats);
         const booking = db.prepare('SELECT * FROM bookings WHERE id = ?').get(lastInsertRowid);
+        notify(
+          db,
+          trip.driver_id,
+          'booking_request',
+          `${userName(db, user.id)} demande ${seats} place${seats > 1 ? 's' : ''} sur ${tripLabel(trip)}.`,
+          { tripId, bookingId: booking.id },
+        );
         // Une demande en attente ne retire aucune place : seul le conducteur, en acceptant, les attribue
         return { status: 201, body: { booking, seats_left: trip.seats_left } };
       });
@@ -78,6 +86,13 @@ export const bookingRoutes = [
           throw new HttpError(409, 'Impossible d\'annuler : le trajet est déjà parti');
         }
         db.prepare("UPDATE bookings SET status = 'cancelled' WHERE id = ?").run(id);
+        notify(
+          db,
+          trip.driver_id,
+          'booking_cancelled',
+          `${userName(db, user.id)} a annulé ${booking.status === 'pending' ? 'sa demande' : 'sa réservation'} pour ${tripLabel(trip)}.`,
+          { tripId: trip.id, bookingId: id },
+        );
         return { body: { booking: db.prepare('SELECT * FROM bookings WHERE id = ?').get(id) } };
       });
     },
@@ -94,6 +109,10 @@ export const bookingRoutes = [
           throw new HttpError(409, `Il ne reste que ${trip.seats_left} place(s) : impossible d'accepter cette demande`);
         }
         db.prepare("UPDATE bookings SET status = 'confirmed' WHERE id = ?").run(booking.id);
+        notify(db, booking.passenger_id, 'booking_accepted', `Votre demande pour ${tripLabel(trip)} a été acceptée.`, {
+          tripId: trip.id,
+          bookingId: booking.id,
+        });
         return {
           body: {
             booking: db.prepare('SELECT * FROM bookings WHERE id = ?').get(booking.id),
@@ -112,6 +131,10 @@ export const bookingRoutes = [
       return transaction(db, () => {
         const { booking, trip } = loadPendingRequest(db, user, params);
         db.prepare("UPDATE bookings SET status = 'refused' WHERE id = ?").run(booking.id);
+        notify(db, booking.passenger_id, 'booking_refused', `Votre demande pour ${tripLabel(trip)} a été refusée.`, {
+          tripId: trip.id,
+          bookingId: booking.id,
+        });
         return {
           body: { booking: db.prepare('SELECT * FROM bookings WHERE id = ?').get(booking.id), seats_left: trip.seats_left },
         };

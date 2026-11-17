@@ -4,6 +4,7 @@
 import { HttpError } from '../http.js';
 import { transaction } from '../db.js';
 import { requireTrip } from '../queries.js';
+import { notifyTripCancelled } from '../notify.js';
 import { escapeLike, parseId, requireString } from '../validation.js';
 
 const NOW_SQL = "strftime('%Y-%m-%dT%H:%M:%fZ', 'now')";
@@ -26,7 +27,9 @@ function resolveReportsFor(db, admin, targetType, targetId) {
   ).run(admin.id, targetType, targetId);
 }
 
-function cancelTripWithBookings(db, tripId) {
+function cancelTripWithBookings(db, tripId, cause) {
+  // Avant l'annulation : on a besoin de savoir qui avait une demande active
+  notifyTripCancelled(db, db.prepare('SELECT * FROM trips WHERE id = ?').get(tripId), cause);
   db.prepare("UPDATE trips SET status = 'cancelled' WHERE id = ?").run(tripId);
   db.prepare("UPDATE bookings SET status = 'cancelled' WHERE trip_id = ? AND status IN ('pending', 'confirmed')").run(tripId);
 }
@@ -140,7 +143,7 @@ export const adminRoutes = [
         const upcoming = db
           .prepare(`SELECT id FROM trips WHERE driver_id = ? AND status = 'open' AND departure_at > ${NOW_SQL}`)
           .all(id);
-        for (const trip of upcoming) cancelTripWithBookings(db, trip.id);
+        for (const trip of upcoming) cancelTripWithBookings(db, trip.id, 'suspension');
         db.prepare(
           `UPDATE bookings SET status = 'cancelled'
            WHERE passenger_id = ? AND status IN ('pending', 'confirmed')
@@ -217,7 +220,7 @@ export const adminRoutes = [
         const trip = requireTrip(db, id);
         if (trip.status === 'cancelled') throw new HttpError(409, 'Ce trajet est déjà annulé');
         if (trip.departure_at <= new Date().toISOString()) throw new HttpError(409, 'Ce trajet est déjà parti');
-        cancelTripWithBookings(db, id);
+        cancelTripWithBookings(db, id, 'admin');
         resolveReportsFor(db, user, 'trip', id);
         logAction(db, user, 'remove_trip', 'trip', id, `${trip.origin} → ${trip.destination}, conducteur n°${trip.driver_id}`);
         return { body: { trip: requireTrip(db, id) } };

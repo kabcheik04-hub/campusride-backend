@@ -1,6 +1,7 @@
 // Point d'entrée : navigation par l'adresse (#/...), barre de navigation, pages
 
 import { session } from './api.js';
+import { initBell, syncBell } from './notifications.js';
 import { mountLogin, mountRegister } from './pages/auth.js';
 import { mount as admin } from './pages/admin.js';
 import { mount as dashboard } from './pages/dashboard.js';
@@ -63,6 +64,7 @@ async function route() {
 
   app.onclick = null;
   renderNav(path);
+  syncBell();
 
   for (const [pattern, page, needsAuth] of routes) {
     const match = pattern.exec(path);
@@ -95,13 +97,16 @@ async function route() {
   app.innerHTML = `<h1>Page introuvable</h1>${emptyState("Cette page n'existe pas", 'Le lien est peut-être incorrect.', '<a class="btn btn-secondary" href="#/">Retour à la recherche</a>')}`;
 }
 
+initBell(document.getElementById('bell-root'));
 window.addEventListener('hashchange', route);
 window.addEventListener('account-suspended', () => {
   toast('Votre compte a été suspendu. Contactez un administrateur.', 'error');
+  syncBell();
   location.hash = '#/login';
 });
 window.addEventListener('session-expired', () => {
   toast('Votre session a expiré, reconnectez-vous.', 'error');
+  syncBell();
   location.hash = '#/login';
 });
 

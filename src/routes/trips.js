@@ -1,3 +1,4 @@
+import { notifyTripCancelled } from '../notify.js';
 import { HttpError } from '../http.js';
 import { transaction } from '../db.js';
 import { TRIP_SELECT, getTrip, requireTrip } from '../queries.js';
@@ -100,6 +101,7 @@ export const tripRoutes = [
           throw new HttpError(409, 'Impossible d\'annuler : le trajet est déjà parti');
         }
         db.prepare("UPDATE trips SET status = 'cancelled' WHERE id = ?").run(id);
+        notifyTripCancelled(db, trip, 'driver');
         db.prepare("UPDATE bookings SET status = 'cancelled' WHERE trip_id = ? AND status IN ('pending', 'confirmed')").run(id);
         return { body: { trip: getTrip(db, id) } };
       });
