@@ -15,17 +15,6 @@ Application de covoiturage étudiant (projet web MIAGE 2). Un conducteur publie 
 - Avis et notes sur les conducteurs
 - **Administration et modération** : signalements, suspension de compte, retrait de trajet, suppression d'avis, journal des actions
 
-## Captures d'écran
-
-| Recherche | Demande en attente |
-|-----------|--------------------|
-| ![Recherche](docs/screenshots/accueil.png) | ![Demande](docs/screenshots/demande.png) |
-
-| Notifications | Administration |
-|---------------|----------------|
-| ![Cloche](docs/screenshots/cloche.png) | ![Admin](docs/screenshots/admin.png) |
-
-![Vue mobile](docs/screenshots/mobile.png)
 
 ## Technologies
 
