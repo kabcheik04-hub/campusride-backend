@@ -2,6 +2,7 @@
 
 import { session } from './api.js';
 import { mountLogin, mountRegister } from './pages/auth.js';
+import { mount as admin } from './pages/admin.js';
 import { mount as dashboard } from './pages/dashboard.js';
 import { mount as publish } from './pages/publish.js';
 import { mount as search } from './pages/search.js';
@@ -19,6 +20,7 @@ const routes = [
   [/^\/publish$/, publish, true],
   [/^\/dashboard(?:\/(published|booked))?$/, dashboard, true],
   [/^\/trip\/(\d+)$/, trip, false],
+  [/^\/admin(?:\/(reports|users|reviews|log))?$/, admin, true],
 ];
 
 function renderNav(path) {
@@ -31,6 +33,7 @@ function renderNav(path) {
         link('#/', 'Rechercher', 'search', path === '/'),
         user.role !== 'passenger' ? link('#/publish', 'Publier', 'plus', path === '/publish') : '',
         link('#/dashboard', 'Mon espace', 'list', path.startsWith('/dashboard')),
+        user.is_admin ? link('#/admin', 'Administration', 'flag', path.startsWith('/admin')) : '',
         `<button type="button" id="logout">${icon('logout', 'icon nav-icon')}<span>Déconnexion</span></button>`,
         `<span class="who">${esc(shortName(user.name))}</span>`,
       ]
@@ -93,6 +96,10 @@ async function route() {
 }
 
 window.addEventListener('hashchange', route);
+window.addEventListener('account-suspended', () => {
+  toast('Votre compte a été suspendu. Contactez un administrateur.', 'error');
+  location.hash = '#/login';
+});
 window.addEventListener('session-expired', () => {
   toast('Votre session a expiré, reconnectez-vous.', 'error');
   location.hash = '#/login';

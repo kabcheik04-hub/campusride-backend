@@ -106,7 +106,14 @@ describe('parcours complet : publier, chercher, réserver, noter', () => {
     // F4 : réservation, doublon, surréservation, annulation
     const booked = await api('POST', `/api/trips/${trip.id}/bookings`, { token: passenger.token, body: { seats: 1 } });
     assert.equal(booked.status, 201);
-    assert.equal(booked.data.seats_left, 1);
+    assert.equal(booked.data.booking.status, 'pending');
+    assert.equal(booked.data.seats_left, 2, 'une demande en attente ne retire aucune place');
+
+    // Le conducteur accepte : la place est alors attribuée
+    const accepted = await api('PATCH', `/api/bookings/${booked.data.booking.id}/accept`, { token: driver.token });
+    assert.equal(accepted.status, 200);
+    assert.equal(accepted.data.booking.status, 'confirmed');
+    assert.equal(accepted.data.seats_left, 1);
 
     const again = await api('POST', `/api/trips/${trip.id}/bookings`, { token: passenger.token, body: { seats: 1 } });
     assert.equal(again.status, 409);
@@ -132,7 +139,8 @@ describe('parcours complet : publier, chercher, réserver, noter', () => {
     assert.equal(notOwner.status, 403);
 
     // F6 : avis impossible avant le départ
-    await api('POST', `/api/trips/${trip.id}/bookings`, { token: passenger.token, body: { seats: 1 } });
+    const rebooked = await api('POST', `/api/trips/${trip.id}/bookings`, { token: passenger.token, body: { seats: 1 } });
+    await api('PATCH', `/api/bookings/${rebooked.data.booking.id}/accept`, { token: driver.token });
     const early = await api('POST', `/api/trips/${trip.id}/reviews`, {
       token: passenger.token,
       body: { target_id: driver.user.id, rating: 5 },

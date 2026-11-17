@@ -2,7 +2,7 @@ import { HttpError } from './http.js';
 
 /**
  * Requête de base pour lire un trajet : ajoute le nom et la note moyenne du conducteur
- * et calcule le nombre de places encore libres (places totales - réservations confirmées).
+ * et calcule le nombre de places encore libres (places totales - réservations acceptées ; les demandes en attente ne bloquent aucune place).
  */
 export const TRIP_SELECT = `
   SELECT t.id, t.driver_id, u.name AS driver_name, u.photo_url AS driver_photo_url,

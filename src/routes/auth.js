@@ -11,6 +11,7 @@ const publicUser = (user) => ({
   name: user.name,
   role: user.role,
   photo_url: user.photo_url,
+  is_admin: Boolean(user.is_admin),
   created_at: user.created_at,
 });
 
@@ -82,6 +83,10 @@ export const authRoutes = [
       if (!user || !valid) {
         loginLimiter.fail(ip);
         throw new HttpError(401, 'Email ou mot de passe incorrect');
+      }
+      // Après la vérification du mot de passe : l'état du compte n'est révélé qu'à son propriétaire
+      if (user.suspended_at) {
+        throw new HttpError(403, 'Votre compte a été suspendu. Contactez un administrateur.', undefined, 'account_suspended');
       }
       return {
         body: { token: signToken({ sub: user.id }, config.jwtSecret, config.jwtTtlSeconds), user: publicUser(user) },

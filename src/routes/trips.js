@@ -86,7 +86,7 @@ export const tripRoutes = [
     },
   },
   {
-    // Annuler un trajet : réservé au conducteur, annule aussi les réservations
+    // Annuler un trajet : réservé au conducteur, annule aussi les demandes en attente et les réservations acceptées
     method: 'DELETE',
     path: '/api/trips/:id',
     auth: true,
@@ -100,7 +100,7 @@ export const tripRoutes = [
           throw new HttpError(409, 'Impossible d\'annuler : le trajet est déjà parti');
         }
         db.prepare("UPDATE trips SET status = 'cancelled' WHERE id = ?").run(id);
-        db.prepare("UPDATE bookings SET status = 'cancelled' WHERE trip_id = ? AND status = 'confirmed'").run(id);
+        db.prepare("UPDATE bookings SET status = 'cancelled' WHERE trip_id = ? AND status IN ('pending', 'confirmed')").run(id);
         return { body: { trip: getTrip(db, id) } };
       });
     },

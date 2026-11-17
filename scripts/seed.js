@@ -12,8 +12,11 @@ const users = [
   ['awa@campus.test', 'Awa Koné', 'driver'],
   ['yann@campus.test', 'Yann Diallo', 'both'],
   ['lea@campus.test', 'Léa Martin', 'passenger'],
+  ['admin@campus.test', 'Admin Campus', 'both'],
 ];
 for (const [email, name, role] of users) insertUser.run(email, passwordHash, name, role);
+// Compte administrateur de démonstration (en production : utilisez `npm run make-admin -- email`)
+db.prepare('UPDATE users SET is_admin = 1 WHERE email = ?').run('admin@campus.test');
 
 const idOf = (email) => db.prepare('SELECT id FROM users WHERE email = ?').get(email).id;
 const inDays = (days, hour) => {
@@ -37,7 +40,10 @@ if (db.prepare('SELECT COUNT(*) AS n FROM trips').get().n === 0) {
   for (const [email, origin, destination, departureAt, seats, price] of trips) {
     insertTrip.run(idOf(email), origin, destination, departureAt, seats, price);
   }
+  // Une demande en attente pour la démo : Léa demande une place sur le premier trajet d'Awa
+  const firstTrip = db.prepare('SELECT id FROM trips ORDER BY id LIMIT 1').get();
+  db.prepare('INSERT INTO bookings (trip_id, passenger_id, seats) VALUES (?, ?, 1)').run(firstTrip.id, idOf('lea@campus.test'));
 }
 
-console.log('Données de démonstration ajoutées. Connexion : awa@campus.test / password123');
+console.log('Données de démonstration ajoutées. Connexion : awa@campus.test / password123 (admin : admin@campus.test / password123)');
 db.close();

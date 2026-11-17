@@ -258,3 +258,9 @@ dialog::backdrop { background: rgba(11, 27, 52, 0.6); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
+
+/* ---------- Administration ---------- */
+.segmented-wide { max-width: 40rem; }
+.segmented-wide > a { flex: 1 1 auto; text-align: center; }
+.admin-search { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-3); margin-bottom: var(--space-4); }
+.admin-search .field { flex: 1 1 14rem; margin: 0; }

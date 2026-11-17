@@ -1,9 +1,10 @@
 /** Erreur renvoyée telle quelle au client avec son code HTTP. */
 export class HttpError extends Error {
-  constructor(status, message, headers) {
+  constructor(status, message, headers, code) {
     super(message);
     this.status = status;
     this.headers = headers;
+    this.code = code; // identifiant stable pour le front-end (ex. « account_suspended »)
   }
 }
 

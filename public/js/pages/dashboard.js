@@ -7,13 +7,18 @@ import { askConfirm, emptyState, errorState, esc, euro, icon, loading, pill, plu
 function bookingStatus(booking) {
   if (booking.trip_state === 'cancelled') return pill('off', 'Trajet annulé');
   if (booking.status === 'cancelled') return pill('off', 'Annulée');
+  if (booking.status === 'refused') return pill('off', 'Refusée');
+  if (booking.status === 'pending') {
+    return booking.trip_state === 'done' ? pill('done', 'Sans réponse') : pill('info', 'En attente du conducteur');
+  }
   if (booking.trip_state === 'done') return pill('done', 'Terminé');
   return pill('ok', 'Confirmé');
 }
 
-function tripStatus(trip, confirmed) {
+function tripStatus(trip, confirmed, pending) {
   if (trip.state === 'cancelled') return pill('off', 'Annulé');
   if (trip.state === 'done') return pill('done', 'Terminé');
+  if (pending) return pill('info', plural(pending, 'demande') + ' en attente');
   return confirmed ? pill('ok', plural(confirmed, 'réservation')) : pill('info', 'Aucune réservation');
 }
 
@@ -21,7 +26,7 @@ const route = (origin, destination) =>
   `<span>${esc(origin)}</span><span class="sr-only"> vers </span><span class="route-to">${icon('arrow', 'icon icon-sm')}<span>${esc(destination)}</span></span>`;
 
 function bookingRow(booking) {
-  const canCancel = booking.status === 'confirmed' && booking.trip_state === 'open';
+  const canCancel = ['pending', 'confirmed'].includes(booking.status) && booking.trip_state === 'open';
   const canReview = booking.status === 'confirmed' && booking.trip_state === 'done';
   const line = `${booking.origin} → ${booking.destination} · ${shortWhen(booking.departure_at)}`;
   return `
@@ -32,7 +37,7 @@ function bookingRow(booking) {
       ${
         canCancel || canReview
           ? `<div class="row-actions">
-              ${canCancel ? `<button class="btn btn-danger" type="button" data-act="cancel-booking" data-id="${booking.id}">Annuler ma réservation</button>` : ''}
+              ${canCancel ? `<button class="btn btn-danger" type="button" data-act="cancel-booking" data-id="${booking.id}">${booking.status === 'pending' ? 'Annuler ma demande' : 'Annuler ma réservation'}</button>` : ''}
               ${canReview ? `<button class="btn btn-secondary" type="button" data-act="review" data-trip="${booking.trip_id}" data-target="${booking.driver_id}" data-name="${esc(booking.driver_name)}" data-photo="${esc(booking.driver_photo_url ?? '')}" data-line="${esc(line)}">Noter le conducteur</button>` : ''}
             </div>`
           : ''
@@ -42,6 +47,7 @@ function bookingRow(booking) {
 
 function tripRow(trip) {
   const confirmed = trip.bookings.filter((b) => b.status === 'confirmed').length;
+  const pending = trip.bookings.filter((b) => b.status === 'pending').length;
   const line = `${trip.origin} → ${trip.destination} · ${shortWhen(trip.departure_at)}`;
   const people = trip.bookings.length
     ? `<ul class="people" aria-label="Passagers">${trip.bookings
@@ -50,6 +56,16 @@ function tripRow(trip) {
         <li>
           <span class="who-line">${esc(shortName(b.passenger_name))} · ${plural(b.seats, 'place')}</span>
           ${b.status === 'cancelled' ? pill('off', 'Annulée') : ''}
+          ${b.status === 'refused' ? pill('off', 'Refusée') : ''}
+          ${b.status === 'pending' && trip.state !== 'open' ? pill('done', 'Sans réponse') : ''}
+          ${
+            b.status === 'pending' && trip.state === 'open'
+              ? `<div class="row-actions">
+                  <button class="btn btn-primary" type="button" data-act="accept-booking" data-id="${b.id}" aria-label="Accepter la demande de ${esc(shortName(b.passenger_name))}">Accepter</button>
+                  <button class="btn btn-secondary" type="button" data-act="refuse-booking" data-id="${b.id}" aria-label="Refuser la demande de ${esc(shortName(b.passenger_name))}">Refuser</button>
+                </div>`
+              : ''
+          }
           ${
             b.status === 'confirmed' && trip.state === 'done'
               ? `<button class="btn btn-secondary" type="button" data-act="review" data-trip="${trip.id}" data-target="${b.passenger_id}" data-name="${esc(b.passenger_name)}" data-photo="" data-line="${esc(line)}">Noter ${esc(shortName(b.passenger_name))}</button>`
@@ -61,7 +77,7 @@ function tripRow(trip) {
     : '';
   return `
     <li class="row">
-      <div class="row-head"><span class="row-when">${shortWhen(trip.departure_at)}</span>${tripStatus(trip, confirmed)}</div>
+      <div class="row-head"><span class="row-when">${shortWhen(trip.departure_at)}</span>${tripStatus(trip, confirmed, pending)}</div>
       <a class="row-route" href="#/trip/${trip.id}">${route(trip.origin, trip.destination)}</a>
       <p class="muted">${trip.seats_left} place${trip.seats_left > 1 ? 's' : ''} libre${trip.seats_left > 1 ? 's' : ''} sur ${trip.seats_total} · ${euro(trip.price)}</p>
       ${people}
@@ -72,7 +88,15 @@ function tripRow(trip) {
 async function handleAction(button) {
   const { act, id, trip, target, name, photo, line } = button.dataset;
 
-  if (act === 'cancel-booking') {
+  if (act === 'accept-booking') {
+    await api('PATCH', `/bookings/${id}/accept`);
+    toast('Demande acceptée.');
+  } else if (act === 'refuse-booking') {
+    const ok = await askConfirm({ title: 'Refuser cette demande ?', text: 'Le passager sera informé que sa demande est refusée.', confirmLabel: 'Refuser la demande', danger: true });
+    if (!ok) return;
+    await api('PATCH', `/bookings/${id}/refuse`);
+    toast('Demande refusée.');
+  } else if (act === 'cancel-booking') {
     const ok = await askConfirm({ title: 'Annuler cette réservation ?', text: 'Les places seront libérées pour les autres étudiants.', confirmLabel: 'Annuler la réservation', danger: true });
     if (!ok) return;
     await api('DELETE', `/bookings/${id}`);

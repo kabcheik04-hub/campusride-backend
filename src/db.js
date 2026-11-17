@@ -10,7 +10,11 @@ CREATE TABLE IF NOT EXISTS users (
   name          TEXT NOT NULL,
   role          TEXT NOT NULL DEFAULT 'both' CHECK (role IN ('driver', 'passenger', 'both')),
   photo_url     TEXT,
-  created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+  created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  -- Le rôle administrateur est séparé de role : il ne s'obtient jamais par l'inscription ni par le profil
+  is_admin      INTEGER NOT NULL DEFAULT 0,
+  -- Date de suspension du compte (NULL = compte actif)
+  suspended_at  TEXT
 );
 
 CREATE TABLE IF NOT EXISTS trips (
@@ -31,12 +35,12 @@ CREATE TABLE IF NOT EXISTS bookings (
   trip_id      INTEGER NOT NULL REFERENCES trips(id),
   passenger_id INTEGER NOT NULL REFERENCES users(id),
   seats        INTEGER NOT NULL CHECK (seats BETWEEN 1 AND 4),
-  status       TEXT NOT NULL DEFAULT 'confirmed' CHECK (status IN ('confirmed', 'cancelled')),
+  status       TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'refused', 'cancelled')),
   created_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
--- Un passager ne peut avoir qu'une réservation active par trajet
+-- Un passager ne peut avoir qu'une demande active (en attente ou acceptée) par trajet
 CREATE UNIQUE INDEX IF NOT EXISTS idx_bookings_active
-  ON bookings(trip_id, passenger_id) WHERE status = 'confirmed';
+  ON bookings(trip_id, passenger_id) WHERE status IN ('pending', 'confirmed');
 
 CREATE TABLE IF NOT EXISTS reviews (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -48,7 +52,71 @@ CREATE TABLE IF NOT EXISTS reviews (
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   UNIQUE (trip_id, author_id, target_id)
 );
+
+-- Signalements faits par les utilisateurs, traités par les administrateurs
+CREATE TABLE IF NOT EXISTS reports (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  reporter_id INTEGER NOT NULL REFERENCES users(id),
+  target_type TEXT NOT NULL CHECK (target_type IN ('user', 'trip', 'review')),
+  target_id   INTEGER NOT NULL,
+  reason      TEXT NOT NULL CHECK (reason IN ('inappropriate', 'spam', 'dangerous', 'fraud', 'other')),
+  details     TEXT,
+  status      TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'resolved')),
+  created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  resolved_at TEXT,
+  resolved_by INTEGER REFERENCES users(id)
+);
+-- Un utilisateur ne peut pas signaler dix fois la même cible tant que le premier signalement est ouvert
+CREATE UNIQUE INDEX IF NOT EXISTS idx_reports_open ON reports(reporter_id, target_type, target_id) WHERE status = 'open';
+CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status, created_at);
+
+-- Journal des actions de modération : qui a fait quoi, quand
+CREATE TABLE IF NOT EXISTS admin_actions (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  admin_id    INTEGER NOT NULL REFERENCES users(id),
+  action      TEXT NOT NULL,
+  target_type TEXT NOT NULL,
+  target_id   INTEGER NOT NULL,
+  details     TEXT,
+  created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
 `;
+
+/**
+ * Bases créées avant la V5 : le statut « pending » / « refused » n'existe pas dans leur contrainte CHECK.
+ * SQLite ne sait pas modifier une contrainte : on reconstruit la table en conservant toutes les lignes
+ * (« confirmed » et « cancelled » gardent leur sens).
+ */
+function migrateBookings(db) {
+  const row = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'bookings'").get();
+  if (!row || row.sql.includes("'pending'")) return;
+
+  db.exec('PRAGMA foreign_keys = OFF;');
+  try {
+    db.exec('BEGIN');
+    db.exec('DROP INDEX IF EXISTS idx_bookings_active');
+    db.exec('ALTER TABLE bookings RENAME TO bookings_old');
+    db.exec(SCHEMA); // recrée bookings (et son index) ; les autres tables existent déjà
+    db.exec(
+      'INSERT INTO bookings (id, trip_id, passenger_id, seats, status, created_at) ' +
+        'SELECT id, trip_id, passenger_id, seats, status, created_at FROM bookings_old',
+    );
+    db.exec('DROP TABLE bookings_old');
+    db.exec('COMMIT');
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  } finally {
+    db.exec('PRAGMA foreign_keys = ON;');
+  }
+}
+
+/** Bases créées avant la V5 : ajoute les colonnes d'administration à `users` (les anciennes lignes restent intactes). */
+function migrateUsers(db) {
+  const columns = db.prepare('PRAGMA table_info(users)').all().map((column) => column.name);
+  if (!columns.includes('is_admin')) db.exec('ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0');
+  if (!columns.includes('suspended_at')) db.exec('ALTER TABLE users ADD COLUMN suspended_at TEXT');
+}
 
 /** Ouvre (et crée si besoin) la base SQLite, puis applique le schéma. */
 export function openDb(path) {
@@ -60,7 +128,9 @@ export function openDb(path) {
   if (path !== ':memory:') {
     db.exec('PRAGMA journal_mode = WAL;');
   }
+  migrateBookings(db);
   db.exec(SCHEMA);
+  migrateUsers(db);
   return db;
 }
 

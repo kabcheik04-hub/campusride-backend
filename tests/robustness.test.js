@@ -59,15 +59,22 @@ before(async () => {
 after(() => new Promise((resolve) => server.close(resolve)));
 
 describe('concurrence', () => {
-  test('30 réservations simultanées sur 3 places : exactement 3 réussissent', async () => {
+  test('30 demandes simultanées sur 3 places, toutes acceptées en même temps : exactement 3 réussissent', async () => {
     const driver = await newUser('driver');
     const trip = await newTrip(driver, 3);
     const passengers = await Promise.all(Array.from({ length: 30 }, () => newUser('passenger')));
 
-    const results = await Promise.all(
+    // Les demandes en attente ne bloquent aucune place : les 30 sont enregistrées
+    const requests = await Promise.all(
       passengers.map((p) => call('POST', `/api/trips/${trip.id}/bookings`, { token: p.token, body: { seats: 1 } })),
     );
-    const ok = results.filter((r) => r.status === 201).length;
+    assert.equal(requests.filter((r) => r.status === 201).length, 30);
+
+    // Le conducteur accepte tout, simultanément : la capacité est revérifiée dans la transaction
+    const results = await Promise.all(
+      requests.map((r) => call('PATCH', `/api/bookings/${r.data.booking.id}/accept`, { token: driver.token })),
+    );
+    const ok = results.filter((r) => r.status === 200).length;
     const refused = results.filter((r) => r.status === 409).length;
     assert.equal(ok, 3);
     assert.equal(refused, 27);
@@ -154,6 +161,11 @@ describe('droits d\'accès', () => {
     const passenger = await newUser('passenger');
     const trip = await newTrip(owner, 3);
     const booking = (await call('POST', `/api/trips/${trip.id}/bookings`, { token: passenger.token })).data.booking;
+
+    // Ni l'intrus ni le passager ne peuvent répondre à la place du conducteur
+    assert.equal((await call('PATCH', `/api/bookings/${booking.id}/accept`, { token: intruder.token })).status, 403);
+    assert.equal((await call('PATCH', `/api/bookings/${booking.id}/refuse`, { token: passenger.token })).status, 403);
+    assert.equal((await call('PATCH', `/api/bookings/${booking.id}/accept`)).status, 401);
 
     assert.equal((await call('DELETE', `/api/trips/${trip.id}`, { token: intruder.token })).status, 403);
     assert.equal((await call('DELETE', `/api/bookings/${booking.id}`, { token: intruder.token })).status, 403);
@@ -310,7 +322,8 @@ describe('données invalides et malveillantes', () => {
     const driver = await newUser('driver');
     const passenger = await newUser('passenger');
     const trip = await newTrip(driver, 2);
-    await call('POST', `/api/trips/${trip.id}/bookings`, { token: passenger.token });
+    const booking = (await call('POST', `/api/trips/${trip.id}/bookings`, { token: passenger.token })).data.booking;
+    await call('PATCH', `/api/bookings/${booking.id}/accept`, { token: driver.token });
     db.prepare('UPDATE trips SET departure_at = ? WHERE id = ?').run('2020-01-01T08:00:00.000Z', trip.id);
 
     const target = driver.user.id;

@@ -68,6 +68,10 @@ function authenticate(req, db, config) {
   const payload = token ? verifyToken(token, config.jwtSecret) : null;
   const user = payload ? db.prepare('SELECT * FROM users WHERE id = ?').get(payload.sub) : null;
   if (!user) throw new HttpError(401, 'Authentification requise');
+  // Vérifié à chaque requête : une suspension coupe l'accès immédiatement, sans attendre l'expiration du jeton
+  if (user.suspended_at) {
+    throw new HttpError(403, 'Votre compte a été suspendu. Contactez un administrateur.', undefined, 'account_suspended');
+  }
   return user;
 }
 
@@ -96,6 +100,7 @@ export function createApp({ db, config }) {
       }
       const { route, params } = findRoute(req.method, url.pathname);
       const user = route.auth ? authenticate(req, db, config) : null;
+      if (route.admin && !user.is_admin) throw new HttpError(403, 'Réservé aux administrateurs');
 
       const body = ['POST', 'PATCH'].includes(req.method) ? await readJson(req) : {};
       if (body === null || typeof body !== 'object' || Array.isArray(body)) {
@@ -117,7 +122,7 @@ export function createApp({ db, config }) {
       if (error instanceof HttpError) {
         // Après un corps trop gros, la requête n'a pas été lue en entier : on ferme la connexion
         const extra = error.status === 413 ? { Connection: 'close' } : error.headers ?? {};
-        sendJson(res, error.status, { error: error.message }, { ...headers, ...extra });
+        sendJson(res, error.status, { error: error.message, ...(error.code ? { code: error.code } : {}) }, { ...headers, ...extra });
       } else {
         console.error(error);
         sendJson(res, 500, { error: 'Erreur interne du serveur' }, headers);

@@ -91,6 +91,10 @@ export async function api(method, path, body) {
     session.clear();
     window.dispatchEvent(new Event('session-expired'));
   }
+  if (response.status === 403 && data?.code === 'account_suspended' && session.token) {
+    session.clear();
+    window.dispatchEvent(new Event('account-suspended'));
+  }
   if (!response.ok) throw new ApiError(data?.error ?? `Erreur ${response.status}`, response.status);
   return data;
 }

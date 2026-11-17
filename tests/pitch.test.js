@@ -76,7 +76,8 @@ describe('données utiles à l\'interface', () => {
     assert.equal(data.trip.driver_reviews_count, 0);
     assert.equal(data.trip.driver_rating, null);
 
-    await call('POST', `/api/trips/${tripId}/bookings`, { token: passenger.token });
+    const booking = (await call('POST', `/api/trips/${tripId}/bookings`, { token: passenger.token })).data.booking;
+    await call('PATCH', `/api/bookings/${booking.id}/accept`, { token: driver.token });
     assert.equal((await call('GET', '/api/me/bookings', { token: passenger.token })).data.bookings[0].trip_state, 'open');
 
     // Le départ passe : le trajet devient « terminé » et un avis devient possible
