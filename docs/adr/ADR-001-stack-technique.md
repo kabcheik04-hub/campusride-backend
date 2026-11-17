@@ -41,7 +41,8 @@ Contraintes qui pèsent sur le choix :
 - **Positives** : un seul langage pour toute l'équipe, installation en 4 commandes (`npm install`, puis
   `npm start`), aucune dépendance d'exécution à maintenir, code simple à lire et à tester.
 - **Négatives** : le routage, la validation des données et la gestion des erreurs sont écrits à la main
-  (environ 150 lignes dans `src/app.js` et `src/validation.js`). Pas de limitation du nombre de requêtes
-  ni de mécanisme de renouvellement des jetons dans cette version.
+  (environ 150 lignes dans `src/app.js` et `src/validation.js`). Seules les tentatives de connexion
+  échouées sont limitées (`src/rateLimit.js`, en mémoire, par IP) ; pas de limitation générale des requêtes
+  ni de renouvellement des jetons dans cette version.
 - **Évolution possible** : si l'API grossit, la structure en routes séparées permet de passer à Express ou
   Fastify en ne modifiant que `src/app.js`.

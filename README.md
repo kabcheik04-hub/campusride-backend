@@ -41,6 +41,8 @@ Comptes de démonstration (après `npm run seed`), mot de passe `password123` :
 Voir `.env.example`. `JWT_SECRET` est obligatoire quand `NODE_ENV=production`.
 `ALLOWED_EMAIL_DOMAINS` (facultatif) limite l'inscription aux e-mails d'établissements, par exemple
 `univ-lyon.fr,etu.univ-lyon.fr` (les sous-domaines sont acceptés). Vide, toutes les adresses sont acceptées.
+`LOGIN_MAX_ATTEMPTS` (10) et `LOGIN_WINDOW_SECONDS` (900) règlent la limite d'échecs de connexion par adresse IP : au-delà, l'API répond 429 avec l'en-tête `Retry-After`.
+Sans `JWT_SECRET` en développement, un secret aléatoire est généré à chaque lancement (avertissement dans la console, sessions perdues au redémarrage).
 `CORS_ORIGIN` doit contenir l'adresse du front-end (par défaut `http://localhost:5173`).
 
 ## Structure du projet
@@ -51,6 +53,7 @@ src/
   app.js           routage, authentification, gestion des erreurs, CORS
   config.js        lecture de la configuration (.env)
   db.js            base SQLite : schéma des 4 tables et transactions
+  rateLimit.js     limite des tentatives de connexion
   auth.js          hachage des mots de passe (scrypt) et jetons JWT
   queries.js       requêtes partagées (lecture d'un trajet, places libres)
   validation.js    contrôle des données reçues
@@ -133,7 +136,8 @@ curl -X POST http://localhost:3000/api/trips \
 - Le nombre de places libres (`seats_left`) est calculé : places du trajet moins réservations confirmées.
 - Une réservation est faite dans une transaction : impossible de dépasser le nombre de places.
 - Un passager n'a qu'une réservation active par trajet ; le conducteur ne réserve pas son propre trajet.
-- Annuler un trajet annule toutes ses réservations.
+- Annuler un trajet annule toutes ses réservations ; un trajet déjà parti ne peut plus être annulé (409).
+- Connexion : 10 échecs par IP et par 15 minutes, puis 429. Un e-mail inconnu coûte le même temps de calcul qu'un mot de passe faux.
 - Un avis n'est possible qu'après le départ, entre personnes ayant participé au trajet, une fois par personne et par trajet.
 - Les dates sont stockées et filtrées en UTC. `price` est un entier en euros.
 - Chaque trajet porte un `state` (`open`, `done` ou `cancelled`), la note moyenne du conducteur (`driver_rating`), son nombre d'avis (`driver_reviews_count`) et sa photo.

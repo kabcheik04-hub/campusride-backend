@@ -51,7 +51,7 @@ async function newTrip(driver, seats = 3) {
 }
 
 before(async () => {
-  ({ server, db } = createServer(loadConfig({ dbPath: ':memory:', jwtSecret: SECRET })));
+  ({ server, db } = createServer(loadConfig({ dbPath: ':memory:', jwtSecret: SECRET, loginMaxAttempts: 100000 })));
   await new Promise((resolve) => server.listen(0, resolve));
   baseUrl = `http://localhost:${server.address().port}`;
 });

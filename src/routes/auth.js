@@ -1,4 +1,4 @@
-import { hashPassword, signToken, verifyPassword } from '../auth.js';
+import { DUMMY_HASH, hashPassword, signToken, verifyPassword } from '../auth.js';
 import { HttpError } from '../http.js';
 import { requireString } from '../validation.js';
 
@@ -66,10 +66,21 @@ export const authRoutes = [
     // F1 : connexion
     method: 'POST',
     path: '/api/auth/login',
-    handler({ db, config, body }) {
+    handler({ db, config, body, ip, loginLimiter }) {
+      const wait = loginLimiter.retryAfter(ip);
+      if (wait) {
+        const minutes = Math.ceil(wait / 60);
+        throw new HttpError(429, `Trop de tentatives de connexion. Réessayez dans ${minutes} minute${minutes > 1 ? 's' : ''}.`, {
+          'Retry-After': String(wait),
+        });
+      }
       const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
       const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
-      if (!user || typeof body.password !== 'string' || !verifyPassword(body.password, user.password_hash)) {
+      // Même coût de calcul que l'e-mail existe ou non : évite de deviner quels comptes existent par le temps de réponse
+      const password = typeof body.password === 'string' ? body.password : '';
+      const valid = verifyPassword(password, user ? user.password_hash : DUMMY_HASH);
+      if (!user || !valid) {
+        loginLimiter.fail(ip);
         throw new HttpError(401, 'Email ou mot de passe incorrect');
       }
       return {

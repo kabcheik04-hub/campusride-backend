@@ -28,10 +28,14 @@ export const tripRoutes = [
       const minSeats = query.seats ? Number(query.seats) : 1;
       if (!Number.isInteger(minSeats) || minSeats < 1) throw new HttpError(400, 'seats doit être un entier positif');
 
+      // Le filtre sur les places libres est fait en SQL, avant LIMIT : sinon des trajets complets
+      // pourraient occuper les 200 premières lignes et masquer des trajets réservables.
       const rows = db
-        .prepare(`${TRIP_SELECT} WHERE ${where.join(' AND ')} ORDER BY t.departure_at ASC LIMIT 200`)
-        .all(...params);
-      return { body: { trips: rows.filter((trip) => trip.seats_left >= minSeats) } };
+        .prepare(
+          `SELECT * FROM (${TRIP_SELECT} WHERE ${where.join(' AND ')}) WHERE seats_left >= ? ORDER BY departure_at ASC LIMIT 200`,
+        )
+        .all(...params, minSeats);
+      return { body: { trips: rows } };
     },
   },
   {
@@ -92,6 +96,9 @@ export const tripRoutes = [
         const trip = requireTrip(db, id);
         if (trip.driver_id !== user.id) throw new HttpError(403, 'Seul le conducteur peut annuler ce trajet');
         if (trip.status === 'cancelled') throw new HttpError(409, 'Ce trajet est déjà annulé');
+        if (trip.departure_at <= new Date().toISOString()) {
+          throw new HttpError(409, 'Impossible d\'annuler : le trajet est déjà parti');
+        }
         db.prepare("UPDATE trips SET status = 'cancelled' WHERE id = ?").run(id);
         db.prepare("UPDATE bookings SET status = 'cancelled' WHERE trip_id = ? AND status = 'confirmed'").run(id);
         return { body: { trip: getTrip(db, id) } };

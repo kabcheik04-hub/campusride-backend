@@ -45,17 +45,20 @@ export const bookingRoutes = [
     auth: true,
     handler({ db, user, params }) {
       const id = parseId(params.id);
-      const booking = db.prepare('SELECT * FROM bookings WHERE id = ?').get(id);
-      if (!booking) throw new HttpError(404, 'Réservation introuvable');
-      if (booking.passenger_id !== user.id) throw new HttpError(403, 'Cette réservation ne vous appartient pas');
-      if (booking.status === 'cancelled') throw new HttpError(409, 'Cette réservation est déjà annulée');
+      // Lecture, contrôles et mise à jour dans une même transaction : pas de course avec une autre annulation
+      return transaction(db, () => {
+        const booking = db.prepare('SELECT * FROM bookings WHERE id = ?').get(id);
+        if (!booking) throw new HttpError(404, 'Réservation introuvable');
+        if (booking.passenger_id !== user.id) throw new HttpError(403, 'Cette réservation ne vous appartient pas');
+        if (booking.status === 'cancelled') throw new HttpError(409, 'Cette réservation est déjà annulée');
 
-      const trip = requireTrip(db, booking.trip_id);
-      if (trip.departure_at <= new Date().toISOString()) {
-        throw new HttpError(409, 'Impossible d\'annuler : le trajet est déjà parti');
-      }
-      db.prepare("UPDATE bookings SET status = 'cancelled' WHERE id = ?").run(id);
-      return { body: { booking: db.prepare('SELECT * FROM bookings WHERE id = ?').get(id) } };
+        const trip = requireTrip(db, booking.trip_id);
+        if (trip.departure_at <= new Date().toISOString()) {
+          throw new HttpError(409, 'Impossible d\'annuler : le trajet est déjà parti');
+        }
+        db.prepare("UPDATE bookings SET status = 'cancelled' WHERE id = ?").run(id);
+        return { body: { booking: db.prepare('SELECT * FROM bookings WHERE id = ?').get(id) } };
+      });
     },
   },
   {

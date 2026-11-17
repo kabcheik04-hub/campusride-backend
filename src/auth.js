@@ -7,6 +7,9 @@ export function hashPassword(password) {
   return `${salt.toString('hex')}:${hash.toString('hex')}`;
 }
 
+// Hash factice : permet de dépenser le même temps de calcul quand l'e-mail est inconnu
+export const DUMMY_HASH = hashPassword('mot-de-passe-factice');
+
 export function verifyPassword(password, stored) {
   const [saltHex, hashHex] = stored.split(':');
   const expected = Buffer.from(hashHex, 'hex');

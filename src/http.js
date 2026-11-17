@@ -1,8 +1,9 @@
 /** Erreur renvoyée telle quelle au client avec son code HTTP. */
 export class HttpError extends Error {
-  constructor(status, message) {
+  constructor(status, message, headers) {
     super(message);
     this.status = status;
+    this.headers = headers;
   }
 }
 

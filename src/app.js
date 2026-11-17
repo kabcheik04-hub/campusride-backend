@@ -4,6 +4,7 @@ import { dirname, extname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { verifyToken } from './auth.js';
 import { openDb } from './db.js';
+import { createRateLimiter } from './rateLimit.js';
 import { HttpError, readJson, sendJson } from './http.js';
 import { routes } from './routes/index.js';
 
@@ -71,6 +72,7 @@ function authenticate(req, db, config) {
 }
 
 export function createApp({ db, config }) {
+  const loginLimiter = createRateLimiter({ max: config.loginMaxAttempts, windowSeconds: config.loginWindowSeconds });
   const headers = {
     'Access-Control-Allow-Origin': config.corsOrigin,
     'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
@@ -103,6 +105,8 @@ export function createApp({ db, config }) {
       const result = await route.handler({
         db,
         config,
+        loginLimiter,
+        ip: req.socket.remoteAddress ?? 'inconnue',
         user,
         params,
         body,
@@ -112,7 +116,7 @@ export function createApp({ db, config }) {
     } catch (error) {
       if (error instanceof HttpError) {
         // Après un corps trop gros, la requête n'a pas été lue en entier : on ferme la connexion
-        const extra = error.status === 413 ? { Connection: 'close' } : {};
+        const extra = error.status === 413 ? { Connection: 'close' } : error.headers ?? {};
         sendJson(res, error.status, { error: error.message }, { ...headers, ...extra });
       } else {
         console.error(error);

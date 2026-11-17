@@ -31,7 +31,7 @@ async function register(email, name, role = 'both') {
 }
 
 before(async () => {
-  ({ server, db } = createServer(loadConfig({ dbPath: ':memory:', jwtSecret: 'test-secret' })));
+  ({ server, db } = createServer(loadConfig({ dbPath: ':memory:', jwtSecret: 'test-secret', loginMaxAttempts: 100000 })));
   await new Promise((resolve) => server.listen(0, resolve));
   baseUrl = `http://localhost:${server.address().port}`;
 });
