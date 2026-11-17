@@ -79,7 +79,7 @@ describe('concurrence', () => {
     assert.equal((await call('GET', `/api/trips/${trip.id}`)).data.trip.seats_left, 0);
   });
 
-  test("le même passager qui clique 10 fois ne réserve qu'une fois", async () => {
+  test('le même passager qui clique 10 fois ne réserve qu\'une fois', async () => {
     const driver = await newUser('driver');
     const trip = await newTrip(driver, 5);
     const passenger = await newUser('passenger');
@@ -117,22 +117,28 @@ describe('jetons falsifiés', () => {
     const victim = await newUser();
     const attacker = await newUser();
 
+    // Remplacer l'identifiant dans le jeton sans refaire la signature
     const [header, , signature] = attacker.token.split('.');
     const forgedBody = Buffer.from(JSON.stringify({ sub: victim.user.id, exp: 9999999999 })).toString('base64url');
     assert.equal((await call('GET', '/api/me', { token: `${header}.${forgedBody}.${signature}` })).status, 401);
 
+    // Jeton expiré
     const expired = signToken({ sub: victim.user.id }, SECRET, -10);
     assert.equal((await call('GET', '/api/me', { token: expired })).status, 401);
 
+    // Mauvais secret
     const wrongSecret = signToken({ sub: victim.user.id }, 'autre-secret', 3600);
     assert.equal((await call('GET', '/api/me', { token: wrongSecret })).status, 401);
 
+    // Algorithme "none" et signature vide
     const none = `${Buffer.from('{"alg":"none"}').toString('base64url')}.${forgedBody}.`;
     assert.equal((await call('GET', '/api/me', { token: none })).status, 401);
 
+    // Utilisateur qui n'existe pas
     const ghost = signToken({ sub: 999999 }, SECRET, 3600);
     assert.equal((await call('GET', '/api/me', { token: ghost })).status, 401);
 
+    // Valeurs absurdes
     for (const token of ['', 'a', 'a.b', 'a.b.c', '....', 'Bearer', '%00']) {
       const r = await call('GET', '/api/me', { token });
       assert.equal(r.status, 401, `jeton "${token}"`);
@@ -141,7 +147,7 @@ describe('jetons falsifiés', () => {
   });
 });
 
-describe("droits d'accès", () => {
+describe('droits d\'accès', () => {
   test('on ne touche pas aux trajets et réservations des autres', async () => {
     const owner = await newUser('driver');
     const intruder = await newUser('both');
@@ -153,6 +159,7 @@ describe("droits d'accès", () => {
     assert.equal((await call('DELETE', `/api/bookings/${booking.id}`, { token: intruder.token })).status, 403);
     assert.equal((await call('DELETE', `/api/bookings/${booking.id}`)).status, 401);
 
+    // Le profil modifié ne peut pas devenir admin ni changer l'identité
     const patch = await call('PATCH', '/api/me', { token: intruder.token, body: { role: 'admin' } });
     assert.equal(patch.status, 400);
     const sneaky = await call('PATCH', '/api/me', {
@@ -188,6 +195,7 @@ describe('données invalides et malveillantes', () => {
 
     const huge = JSON.stringify({ email: 'a@b.fr', password: 'x'.repeat(300_000) });
     assert.equal((await call('POST', '/api/auth/login', { raw: huge })).status, 413);
+    // Le serveur doit continuer à répondre normalement juste après
     assert.equal((await call('GET', '/api/health')).status, 200);
     assert.equal((await call('GET', '/api/health')).status, 200);
   });
@@ -246,6 +254,7 @@ describe('données invalides et malveillantes', () => {
       assert.equal(search.status, 200);
       assert.equal(search.data.trips.length, 0, `la recherche "${payload}" ne doit rien renvoyer`);
     }
+    // Les tables existent toujours
     assert.ok(db.prepare('SELECT COUNT(*) AS n FROM users').get().n > 0);
     assert.ok(db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name = 'trips'").get().n === 1);
   });
@@ -269,7 +278,7 @@ describe('données invalides et malveillantes', () => {
     assert.equal((await call('GET', `/api/trips?origin=${encodeURIComponent('Cité')}`)).data.trips.length > 0, true);
   });
 
-  test("identifiants et paramètres d'URL absurdes", async () => {
+  test('identifiants et paramètres d\'URL absurdes', async () => {
     for (const id of ['abc', '-1', '0', '1.5', '99999999999999999999', '%20', 'null']) {
       const r = await call('GET', `/api/trips/${id}`);
       assert.equal(r.status, 400, `/api/trips/${id}`);
@@ -283,9 +292,16 @@ describe('données invalides et malveillantes', () => {
   });
 
   test('routes et méthodes inconnues', async () => {
-    assert.equal((await call('GET', '/')).status, 404);
+    assert.equal((await call('GET', '/')).status, 200);
+    assert.equal((await call('GET', '/page-inexistante.html')).status, 404);
     assert.equal((await call('GET', '/api/trips/1/inconnu')).status, 404);
     assert.equal((await call('GET', '/api/../etc/passwd')).status, 404);
+    // Impossible de sortir du dossier public/ pour lire d'autres fichiers du serveur
+    for (const path of ['/..%2fpackage.json', '/%2e%2e/package.json', '/..%2f..%2fsrc%2fconfig.js', '/%00', '/app.js%00.png']) {
+      const r = await call('GET', path);
+      assert.ok(r.status === 404 || r.status === 400, `${path} -> ${r.status}`);
+    }
+    assert.ok(!JSON.stringify((await call('GET', '/..%2fpackage.json')).data).includes('campusride-backend'));
     assert.equal((await call('PUT', '/api/trips')).status, 405);
     assert.equal((await call('DELETE', '/api/health')).status, 405);
   });

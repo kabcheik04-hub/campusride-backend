@@ -5,9 +5,13 @@ import { HttpError } from './http.js';
  * et calcule le nombre de places encore libres (places totales - réservations confirmées).
  */
 export const TRIP_SELECT = `
-  SELECT t.id, t.driver_id, u.name AS driver_name,
+  SELECT t.id, t.driver_id, u.name AS driver_name, u.photo_url AS driver_photo_url,
          (SELECT ROUND(AVG(r.rating), 1) FROM reviews r WHERE r.target_id = t.driver_id) AS driver_rating,
+         (SELECT COUNT(*) FROM reviews r WHERE r.target_id = t.driver_id) AS driver_reviews_count,
          t.origin, t.destination, t.departure_at, t.seats_total, t.price, t.status, t.created_at,
+         CASE WHEN t.status = 'cancelled' THEN 'cancelled'
+              WHEN t.departure_at <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now') THEN 'done'
+              ELSE 'open' END AS state,
          t.seats_total - COALESCE(
            (SELECT SUM(b.seats) FROM bookings b WHERE b.trip_id = t.id AND b.status = 'confirmed'), 0
          ) AS seats_left

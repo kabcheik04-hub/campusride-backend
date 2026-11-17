@@ -68,7 +68,10 @@ export const bookingRoutes = [
         .prepare(
           `SELECT b.id, b.seats, b.status, b.created_at,
                   t.id AS trip_id, t.origin, t.destination, t.departure_at, t.price, t.status AS trip_status,
-                  d.id AS driver_id, d.name AS driver_name
+                  CASE WHEN t.status = 'cancelled' THEN 'cancelled'
+                       WHEN t.departure_at <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now') THEN 'done'
+                       ELSE 'open' END AS trip_state,
+                  d.id AS driver_id, d.name AS driver_name, d.photo_url AS driver_photo_url
            FROM bookings b
            JOIN trips t ON t.id = b.trip_id
            JOIN users d ON d.id = t.driver_id

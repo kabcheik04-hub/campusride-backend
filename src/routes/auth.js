@@ -39,13 +39,21 @@ export const authRoutes = [
       }
       const name = requireString(body.name, 'nom', { min: 2, max: 80 });
       const role = parseRole(body.role ?? 'both');
+      const photoUrl = body.photo_url ? parsePhotoUrl(body.photo_url) : null;
+
+      // Profil « vérifié par l'e-mail de l'établissement » : seuls les domaines autorisés peuvent s'inscrire
+      const domains = config.allowedEmailDomains;
+      const emailDomain = email.split('@')[1];
+      if (domains.length && !domains.some((d) => emailDomain === d || emailDomain.endsWith(`.${d}`))) {
+        throw new HttpError(400, `Utilisez l'adresse e-mail de votre établissement (${domains.map((d) => `@${d}`).join(', ')})`);
+      }
 
       if (db.prepare('SELECT 1 FROM users WHERE email = ?').get(email)) {
         throw new HttpError(409, 'Cet email est déjà utilisé');
       }
       const { lastInsertRowid } = db
-        .prepare('INSERT INTO users (email, password_hash, name, role) VALUES (?, ?, ?, ?)')
-        .run(email, hashPassword(body.password), name, role);
+        .prepare('INSERT INTO users (email, password_hash, name, role, photo_url) VALUES (?, ?, ?, ?, ?)')
+        .run(email, hashPassword(body.password), name, role, photoUrl);
       const user = db.prepare('SELECT * FROM users WHERE id = ?').get(lastInsertRowid);
 
       return {

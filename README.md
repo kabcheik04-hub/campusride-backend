@@ -19,7 +19,9 @@ npm run seed             # optionnel : données de démonstration
 npm start                # API sur http://localhost:3000
 ```
 
-Vérification : `curl http://localhost:3000/api/health` doit répondre `{"status":"ok"}`.
+Vérification : ouvrez **http://localhost:3000** dans le navigateur : l'interface web de CampusRide s'affiche
+(elle est servie par la même application que l'API, aucun second serveur à lancer).
+L'API répond sur `/api` : `http://localhost:3000/api/health` doit afficher `{"status":"ok"}`.
 
 Comptes de démonstration (après `npm run seed`), mot de passe `password123` :
 `awa@campus.test` (conducteur), `yann@campus.test` (les deux), `lea@campus.test` (passager).
@@ -37,6 +39,8 @@ Comptes de démonstration (après `npm run seed`), mot de passe `password123` :
 ## Variables d'environnement
 
 Voir `.env.example`. `JWT_SECRET` est obligatoire quand `NODE_ENV=production`.
+`ALLOWED_EMAIL_DOMAINS` (facultatif) limite l'inscription aux e-mails d'établissements, par exemple
+`univ-lyon.fr,etu.univ-lyon.fr` (les sous-domaines sont acceptés). Vide, toutes les adresses sont acceptées.
 `CORS_ORIGIN` doit contenir l'adresse du front-end (par défaut `http://localhost:5173`).
 
 ## Structure du projet
@@ -52,8 +56,38 @@ src/
   validation.js    contrôle des données reçues
   routes/          une route par fonctionnalité : auth, trips, bookings, reviews
 scripts/seed.js    données de démonstration
-tests/api.test.js  tests du parcours complet
+tests/             tests automatiques : parcours, solidité (concurrence, jetons, injections), données du pitch
+public/            interface web (voir « Interface web » plus bas)
+  index.html       page unique
+  styles/          tokens.css (charte graphique du pitch) et app.css
+  js/              main.js (navigation), api.js, ui.js, forms.js, review.js
+  js/pages/        une page par écran : search, trip, auth, publish, dashboard
 ```
+
+## Interface web
+
+L'interface reprend la charte et les écrans du pitch (« CampusRide Pitch v7 ») : bleu nuit `#0B1B34`,
+teal `#0E7C86`, orange `#E4682B`, menthe `#BFE3E3`, brume `#ECF6F6` ; Georgia gras pour les titres, Calibri pour les textes.
+Pour modifier l'identité, il suffit d'éditer `public/styles/tokens.css`.
+
+| Écran du pitch | Adresse |
+| --- | --- |
+| F3 Recherche | `#/` (les critères restent dans l'adresse : `#/?origin=Gare&date=2026-11-14`) |
+| F4 Détail et réservation | `#/trip/:id` |
+| F1 Inscription, connexion | `#/register`, `#/login` |
+| F2 Publication | `#/publish` |
+| F5 Tableau de bord | `#/dashboard/published`, `#/dashboard/booked` |
+| F6 Avis | fenêtre ouverte depuis le tableau de bord, une fois le trajet terminé |
+
+Choix de conception, d'après les règles du skill `ui-ux-pro-max` :
+
+- **Mobile d'abord** : barre de navigation en bas (4 entrées), puis barre en haut dès 768 px. Testé à 375, 768 et 1440 px.
+- **Accessibilité** : contraste de 4,5:1 minimum (texte bleu nuit sur le bouton orange, le blanc n'atteignant que 3,3:1), zones cliquables de 44 px,
+  focus visible, lien « Aller au contenu », fenêtres de dialogue natives, mouvement réduit respecté.
+- **Formulaires** : message sous chaque champ en erreur, plus un résumé annoncé aux lecteurs d'écran dont chaque ligne mène au champ.
+- **Statuts** : toujours un texte et une icône (Confirmé, Annulée, Terminé), jamais la couleur seule.
+- **États** : chargement, erreur avec bouton « Réessayer », liste vide avec une action proposée.
+- **Aucune donnée fictive** : tout vient de l'API. Les notifications (F7) et la validation par le conducteur ne sont pas dans cette version.
 
 ## Utilisation de l'API
 
@@ -63,7 +97,7 @@ Les erreurs ont la forme `{ "error": "message lisible" }` avec le code HTTP adap
 
 | Fonction | Méthode et route | Corps ou paramètres |
 | --- | --- | --- |
-| F1 Inscription | `POST /api/auth/register` | `email`, `password` (8 caractères min.), `name`, `role` (`driver`, `passenger` ou `both`) |
+| F1 Inscription | `POST /api/auth/register` | `email`, `password` (8 caractères min.), `name`, `role` (`driver`, `passenger` ou `both`), `photo_url` (facultatif, lien http ou https) |
 | F1 Connexion | `POST /api/auth/login` | `email`, `password` |
 | Profil 🔒 | `GET /api/me`, `PATCH /api/me` | `name`, `role`, `photo_url` (facultatifs) |
 | F2 Publier 🔒 | `POST /api/trips` | `origin`, `destination`, `departure_at` (date ISO future), `seats_total` (1 à 8), `price` (entier) |
@@ -101,7 +135,8 @@ curl -X POST http://localhost:3000/api/trips \
 - Un passager n'a qu'une réservation active par trajet ; le conducteur ne réserve pas son propre trajet.
 - Annuler un trajet annule toutes ses réservations.
 - Un avis n'est possible qu'après le départ, entre personnes ayant participé au trajet, une fois par personne et par trajet.
-- Les dates sont stockées et filtrées en UTC. `price` est un entier, sans devise imposée.
+- Les dates sont stockées et filtrées en UTC. `price` est un entier en euros.
+- Chaque trajet porte un `state` (`open`, `done` ou `cancelled`), la note moyenne du conducteur (`driver_rating`), son nombre d'avis (`driver_reviews_count`) et sa photo.
 
 ## Notes techniques
 

@@ -1,0 +1,41 @@
+/*
+  Charte graphique CampusRide, reprise du pitch (diapositive « Identité »).
+  Pour changer l'identité de l'application, modifiez uniquement ce fichier.
+*/
+:root {
+  /* Palette du pitch */
+  --navy: #0B1B34;   /* Bleu nuit */
+  --teal: #0E7C86;   /* Teal */
+  --orange: #E4682B; /* Orange */
+  --mint: #BFE3E3;   /* Menthe */
+  --brume: #ECF6F6;  /* Brume */
+
+  /* Dérivés choisis pour respecter le contraste WCAG (4,5:1 pour le texte) */
+  --teal-deep: #0A5C64;      /* texte teal sur fond clair (7:1 sur brume) */
+  --orange-hover: #EE7B43;   /* survol du bouton principal */
+  --muted: #4B5C6E;          /* texte secondaire */
+  --line: #CFE0E0;           /* séparateurs décoratifs */
+  --line-strong: #6F8B8E;    /* contours de champs (3,6:1 minimum) */
+  --ok-bg: #D8F1E2;
+  --ok-ink: #12502B;
+  --danger: #A52A0B;
+  --danger-bg: #FBE6DE;
+
+  /* Typographie du pitch : Georgia gras pour les titres, Calibri pour les textes */
+  --font-title: Georgia, "Times New Roman", serif;
+  --font-text: Calibri, Carlito, "Segoe UI", system-ui, -apple-system, sans-serif;
+
+  /* Formes */
+  --radius: 10px;
+  --radius-field: 8px;
+  --radius-pill: 999px;
+  --tap: 44px;
+
+  /* Espacements */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+}

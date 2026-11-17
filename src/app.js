@@ -1,4 +1,7 @@
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import http from 'node:http';
+import { dirname, extname, resolve, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { verifyToken } from './auth.js';
 import { openDb } from './db.js';
 import { HttpError, readJson, sendJson } from './http.js';
@@ -20,6 +23,42 @@ function findRoute(method, pathname) {
   }
   if (pathExists) throw new HttpError(405, 'Méthode non autorisée');
   throw new HttpError(404, 'Route introuvable');
+}
+
+// Pages du front-end (dossier public/), servies par la même application
+const PUBLIC_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'public');
+const MIME_TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.ico': 'image/x-icon',
+};
+
+function serveStatic(req, res, pathname, headers) {
+  let relative;
+  try {
+    relative = decodeURIComponent(pathname);
+  } catch {
+    throw new HttpError(400, 'Adresse invalide');
+  }
+  if (relative === '/') relative = '/index.html';
+
+  // Le fichier doit rester dans public/ : bloque les adresses du type ../../secret
+  const file = resolve(PUBLIC_DIR, `.${relative}`);
+  const type = MIME_TYPES[extname(file)];
+  if (!type || !file.startsWith(PUBLIC_DIR + sep) || !existsSync(file) || !statSync(file).isFile()) {
+    throw new HttpError(404, 'Page introuvable');
+  }
+  res.writeHead(200, {
+    ...headers,
+    'Content-Type': type,
+    'Content-Security-Policy':
+      "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https: data:; frame-ancestors 'none'",
+  });
+  res.end(req.method === 'HEAD' ? undefined : readFileSync(file));
 }
 
 function authenticate(req, db, config) {
@@ -49,6 +88,10 @@ export function createApp({ db, config }) {
       }
 
       const url = new URL(req.url, 'http://localhost');
+      if ((req.method === 'GET' || req.method === 'HEAD') && !url.pathname.startsWith('/api')) {
+        serveStatic(req, res, url.pathname, headers);
+        return;
+      }
       const { route, params } = findRoute(req.method, url.pathname);
       const user = route.auth ? authenticate(req, db, config) : null;
 
@@ -68,7 +111,9 @@ export function createApp({ db, config }) {
       sendJson(res, result.status ?? 200, result.body, headers);
     } catch (error) {
       if (error instanceof HttpError) {
-        sendJson(res, error.status, { error: error.message }, error.status === 413 ? { ...headers, Connection: 'close' } : headers);
+        // Après un corps trop gros, la requête n'a pas été lue en entier : on ferme la connexion
+        const extra = error.status === 413 ? { Connection: 'close' } : {};
+        sendJson(res, error.status, { error: error.message }, { ...headers, ...extra });
       } else {
         console.error(error);
         sendJson(res, 500, { error: 'Erreur interne du serveur' }, headers);

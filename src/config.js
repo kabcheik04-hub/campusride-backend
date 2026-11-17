@@ -18,6 +18,11 @@ export function loadConfig(overrides = {}) {
     jwtSecret: env.JWT_SECRET,
     jwtTtlSeconds: Number(env.JWT_TTL_SECONDS ?? 60 * 60 * 24 * 7),
     corsOrigin: env.CORS_ORIGIN ?? 'http://localhost:5173',
+    // Domaines d'e-mail acceptés à l'inscription (ex. "univ-lyon.fr,etu.univ-lyon.fr"). Vide = tous acceptés.
+    allowedEmailDomains: (env.ALLOWED_EMAIL_DOMAINS ?? '')
+      .split(',')
+      .map((domain) => domain.trim().toLowerCase().replace(/^@/, ''))
+      .filter(Boolean),
     nodeEnv: env.NODE_ENV ?? 'development',
     ...overrides,
   };

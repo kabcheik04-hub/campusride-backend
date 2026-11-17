@@ -27,10 +27,11 @@ const insertTrip = db.prepare(
   'INSERT INTO trips (driver_id, origin, destination, departure_at, seats_total, price) VALUES (?, ?, ?, ?, ?, ?)',
 );
 const trips = [
-  ['awa@campus.test', 'Centre-ville', 'Campus principal', inDays(1, 7), 3, 500],
-  ['awa@campus.test', 'Campus principal', 'Centre-ville', inDays(1, 17), 3, 500],
-  ['yann@campus.test', 'Gare', 'Campus principal', inDays(2, 8), 2, 300],
-  ['yann@campus.test', 'Quartier nord', 'Campus principal', inDays(3, 7), 4, 400],
+  // Prix en euros entiers
+  ['awa@campus.test', 'Résidence Les Lilas', 'Campus Sciences', inDays(1, 7), 3, 3],
+  ['awa@campus.test', 'Campus Sciences', 'Résidence Les Lilas', inDays(1, 17), 3, 3],
+  ['yann@campus.test', 'Gare', 'Campus Sciences', inDays(2, 8), 2, 2],
+  ['yann@campus.test', 'Quartier Nord', 'Campus Sciences', inDays(3, 7), 4, 4],
 ];
 if (db.prepare('SELECT COUNT(*) AS n FROM trips').get().n === 0) {
   for (const [email, origin, destination, departureAt, seats, price] of trips) {
