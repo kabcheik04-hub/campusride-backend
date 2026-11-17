@@ -2,10 +2,9 @@
 
 # CampusRide
 
-Application de covoiturage entre étudiants d'un même établissement
-(projet web MIAGE 2). Un conducteur publie un trajet, les passagers
-envoient une demande, le conducteur l'accepte ou la refuse, et chacun
-est prévenu par notification.
+> CampusRide met en relation des étudiants d'un même établissement pour partager leurs trajets vers le campus : moins cher, plus de confiance, et chacun reste informé de l'état de sa demande.
+
+Application de covoiturage étudiant (projet web MIAGE 2). Un conducteur publie un trajet, les passagers envoient une demande, le conducteur l'accepte ou la refuse, et chacun est prévenu par notification.
 
 ## Fonctionnalités
 
@@ -14,8 +13,19 @@ est prévenu par notification.
 - Réservation avec **validation par le conducteur** (en attente, acceptée, refusée)
 - **Notifications internes** (cloche) pour le conducteur et les passagers
 - Avis et notes sur les conducteurs
-- **Administration et modération** : signalements, suspension de compte,
-  retrait de trajet, suppression d'avis, journal des actions
+- **Administration et modération** : signalements, suspension de compte, retrait de trajet, suppression d'avis, journal des actions
+
+## Captures d'écran
+
+| Recherche | Demande en attente |
+|-----------|--------------------|
+| ![Recherche](docs/screenshots/accueil.png) | ![Demande](docs/screenshots/demande.png) |
+
+| Notifications | Administration |
+|---------------|----------------|
+| ![Cloche](docs/screenshots/cloche.png) | ![Admin](docs/screenshots/admin.png) |
+
+![Vue mobile](docs/screenshots/mobile.png)
 
 ## Technologies
 
@@ -55,9 +65,9 @@ Toutes les variables sont facultatives en développement.
 ## Lancer l'application
 
 ```bash
+npm run seed     # données de démonstration
 npm start        # serveur sur http://localhost:3000
 npm run dev      # rechargement automatique
-npm run seed     # données de démonstration
 ```
 
 ### Créer un administrateur
@@ -65,12 +75,21 @@ npm run seed     # données de démonstration
 On ne devient jamais admin par l'inscription. Après avoir créé un compte :
 
 ```bash
-npm run make-admin
+npm run make-admin -- email@exemple.fr
 ```
 
 ## Comptes de démo
 
-À COMPLÉTER (comptes créés par `npm run seed`)
+Après `npm run seed`, tous les comptes ont le mot de passe `password123` :
+
+| E-mail | Rôle |
+|--------|------|
+| `awa@campus.test` | Conducteur |
+| `yann@campus.test` | Conducteur et passager |
+| `lea@campus.test` | Passager |
+| `admin@campus.test` | Administrateur |
+
+Le seed crée aussi 4 trajets et une demande **en attente** de Léa sur le premier trajet d'Awa.
 
 ## Tests et qualité
 
@@ -79,10 +98,7 @@ npm test         # 73 tests
 npm run lint     # ESLint
 ```
 
-Les tests couvrent l'authentification, la validation par le conducteur,
-les notifications, l'administration, la concurrence (30 demandes
-simultanées sur 3 places), les jetons falsifiés, les données malveillantes
-et la charge. Ils sont lancés par GitHub Actions à chaque push.
+Les tests couvrent l'authentification, la validation par le conducteur, les notifications, l'administration, la concurrence (30 demandes simultanées sur 3 places), les jetons falsifiés, les données malveillantes et la charge. Ils sont lancés par GitHub Actions à chaque push.
 
 ## Documentation
 
@@ -93,12 +109,13 @@ et la charge. Ils sont lancés par GitHub Actions à chaque push.
   - ADR-003 : modération et rôles
   - ADR-004 : notifications
 
-## Captures d'écran
+## Évolutions prévues
 
-À AJOUTER
+- Suivi de la position du conducteur en direct pendant le trajet
+- Version mobile installable (PWA) ou application native
+- Messagerie entre conducteur et passagers
+- Paiement des frais en ligne
 
 ## Hors périmètre de cette version
 
-Vérification d'e-mail, photo de profil, mode sombre, PWA, jetons de
-renouvellement, pagination, limiteurs d'écriture, journaux structurés,
-sauvegardes automatiques.
+Vérification d'e-mail, photo de profil, mode sombre, PWA, jetons de renouvellement, pagination, limiteurs d'écriture, journaux structurés, sauvegardes automatiques.
