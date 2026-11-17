@@ -143,12 +143,12 @@ describe('Durcissement', () => {
     const warn = console.warn;
     console.warn = () => {};
     try {
-      const a = loadConfig({ nodeEnv: 'development' }).jwtSecret;
-      const b = loadConfig({ nodeEnv: 'development' }).jwtSecret;
+      const a = loadConfig({ nodeEnv: 'development', jwtSecret: undefined }).jwtSecret;
+      const b = loadConfig({ nodeEnv: 'development', jwtSecret: undefined }).jwtSecret;
       assert.ok(a.length >= 32);
       assert.notEqual(a, b);
       assert.notEqual(a, 'secret-de-developpement-a-changer');
-      assert.throws(() => loadConfig({ nodeEnv: 'production' }), /JWT_SECRET/);
+      assert.throws(() => loadConfig({ nodeEnv: 'production', jwtSecret: undefined }), /JWT_SECRET/);
     } finally {
       console.warn = warn;
       if (saved !== undefined) process.env.JWT_SECRET = saved;
